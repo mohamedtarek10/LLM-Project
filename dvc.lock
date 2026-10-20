@@ -27,8 +27,8 @@ stages:
       size: 2
     - path: src/rag_service/ingest
       hash: md5
-      md5: c636d9b03615c23dc199b4e0b75b06e6.dir
-      size: 12437
+      md5: dbfec35a6d877eb391c61f2f2c58ecfd.dir
+      size: 14431
       nfiles: 5
     params:
       params.yaml:
@@ -38,6 +38,6 @@ stages:
     outs:
     - path: faiss_ev
       hash: md5
-      md5: 6e7a764c4ae6d1e999bb92ddd686d538.dir
-      size: 384486
-      nfiles: 2
+      md5: 8bbf227d42a716ba4b69bb65ea45606a.dir
+      size: 384742
+      nfiles: 3
