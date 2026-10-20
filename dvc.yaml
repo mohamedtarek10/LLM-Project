@@ -1,0 +1,30 @@
+# The reproducible corpus pipeline.
+#
+#   dvc repro   rebuilds the JSON from the PDF, then re-indexes the corpus
+#   dvc pull    fetches the tracked PDF, the derived JSON and the built index
+#
+# The source PDF is tracked separately with `dvc add` (see files/*.pdf.dvc), so
+# it is versioned data rather than a stage output.
+
+stages:
+  extract:
+    desc: Segment the source PDF into one JSON record per article.
+    cmd: rag-extract --allow-empty
+    deps:
+      - files
+      - src/rag_service/extraction
+    outs:
+      - data/corpus.json
+
+  index:
+    desc: Chunk, embed and persist the corpus as a FAISS index.
+    cmd: rag-ingest
+    deps:
+      - data/corpus.json
+      - src/rag_service/ingest
+    params:
+      - chunking.chunk_size
+      - chunking.chunk_overlap
+      - embedding.model
+    outs:
+      - faiss_ev

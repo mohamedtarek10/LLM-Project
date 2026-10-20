@@ -1,33 +1,30 @@
-"""PDF reader with optional OCR for image-only pages.
+"""PDF text extraction, with optional OCR for image-only pages.
 
-Requires the ``ingest`` extra (``pip install -e ".[ingest]"``).
+Requires the ``ingest`` extra (``pip install -e ".[ingest]"``) for PyMuPDF;
+Tesseract is only needed when ``extract_images`` is on.
 """
 
 from pathlib import Path
 
 import numpy as np
-from llama_index.core.readers.base import BaseReader
-from llama_index.core.schema import Document
+from langchain.schema import Document
 
 
-class PyMuPDFImageReader(BaseReader):
-    """Read PDF files using PyMuPDF, optionally OCR-ing embedded images."""
+class PyMuPDFImageReader:
+    """Read a PDF into one document per page, optionally OCR-ing images."""
 
     def __init__(self, extract_images: bool = False, ocr_lang: str = "ara+eng"):
         self.extract_images = extract_images
         self.ocr_lang = ocr_lang
 
     def _page_images(self, doc, page) -> list[np.ndarray]:
-        """Return every embedded image on the page as an RGB array."""
+        """Every embedded image on the page, normalised to 3-channel RGB."""
         import fitz
 
         images: list[np.ndarray] = []
         for img in page.get_images(full=True):
-            xref = img[0]
             try:
-                pix = fitz.Pixmap(doc, xref)
-                # Normalise everything (grayscale, CMYK, alpha) to 3-channel RGB
-                # so the reshape below is always valid.
+                pix = fitz.Pixmap(doc, img[0])
                 if pix.n != 3 or pix.alpha:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
                 images.append(
@@ -42,52 +39,36 @@ class PyMuPDFImageReader(BaseReader):
             return ""
         import pytesseract
 
-        chunks = []
-        for img in images:
-            text = pytesseract.image_to_string(img, lang=self.ocr_lang).strip()
-            if text:
-                chunks.append(text)
-        return "\n".join(chunks)
+        texts = [pytesseract.image_to_string(img, lang=self.ocr_lang).strip() for img in images]
+        return "\n".join(text for text in texts if text)
 
-    def load_data(
-        self,
-        file_path: Path | str,
-        metadata: bool = True,
-        extra_info: dict | None = None,
-        fs=None,
-    ) -> list[Document]:
+    def read_pages(self, file_path: Path | str) -> list[str]:
+        """Plain page texts, in order -- what article segmentation consumes."""
         import fitz
 
-        if fs is not None and str(file_path).startswith("s3://"):
-            with fs.open(file_path, "rb") as handle:
-                doc = fitz.open("pdf", handle.read())
-        else:
-            doc = fitz.open(file_path)
-
-        extra_info = dict(extra_info or {})
-        if metadata:
-            extra_info["total_pages"] = len(doc)
-            extra_info["file_path"] = str(file_path)
-            extra_info["file_name"] = Path(str(file_path)).name
-
-        documents = []
+        doc = fitz.open(str(file_path))
+        pages: list[str] = []
         for page in doc:
             text = page.get_text()
             if self.extract_images:
                 image_text = self._ocr(self._page_images(doc, page))
                 if image_text:
                     text = f"{text}\n{image_text}"
-            documents.append(
-                Document(
-                    text=text,
-                    extra_info={
-                        **extra_info,
-                        "page": page.number + 1,
-                        "source": f"Page {page.number + 1}",
-                    },
-                )
-            )
-        return documents
+            pages.append(text)
+        return pages
 
-    # BaseReader in some llama-index versions calls .load()
-    load = load_data
+    def load_data(self, file_path: Path | str, extra_info: dict | None = None) -> list[Document]:
+        """One LangChain document per page, with provenance metadata."""
+        path = Path(str(file_path))
+        pages = self.read_pages(path)
+
+        base = dict(extra_info or {})
+        base.update({"file_path": str(path), "file_name": path.name, "total_pages": len(pages)})
+
+        return [
+            Document(
+                page_content=text,
+                metadata={**base, "page": number, "source": f"Page {number}"},
+            )
+            for number, text in enumerate(pages, start=1)
+        ]

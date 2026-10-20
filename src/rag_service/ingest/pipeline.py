@@ -18,13 +18,7 @@ from langchain_community.vectorstores import FAISS
 
 from rag_service.config import Settings, get_settings
 from rag_service.ingest.chunking import split_articles, split_documents
-
-
-def get_embeddings(settings: Settings | None = None):
-    settings = settings or get_settings()
-    from langchain_openai import OpenAIEmbeddings
-
-    return OpenAIEmbeddings(model=settings.embedding_model, openai_api_key=settings.openai_api_key)
+from rag_service.ingest.embeddings import get_embeddings
 
 
 # --------------------------------------------------------------------------- #
@@ -82,8 +76,7 @@ def load_pdf_documents(target_directory: Path | str) -> list[Document]:
 
     documents: list[Document] = []
     for path in paths:
-        for doc in reader.load_data(path):
-            documents.append(doc.to_langchain_format())
+        documents.extend(reader.load_data(path))
     return documents
 
 
@@ -97,15 +90,17 @@ def build_index(settings: Settings | None = None, save: bool = True) -> FAISS:
     """
     settings = settings or get_settings()
 
+    documents = []
     if settings.corpus_json.exists():
         print(f"Loading structured corpus from {settings.corpus_json}")
         documents = load_corpus_records(settings.corpus_json)
+
+    if documents:
         chunks = split_articles(documents, settings)
     else:
-        print(
-            f"No corpus JSON at {settings.corpus_json}; falling back to PDFs in "
-            f"{settings.source_dir}"
-        )
+        # No corpus, or an empty one written because the source is not
+        # article-structured: index the PDFs page by page instead.
+        print(f"No article records; indexing PDFs in {settings.source_dir} page by page")
         documents = load_pdf_documents(settings.source_dir)
         chunks = split_documents(documents, settings)
 
@@ -120,8 +115,60 @@ def build_index(settings: Settings | None = None, save: bool = True) -> FAISS:
     if save:
         settings.index_dir.parent.mkdir(parents=True, exist_ok=True)
         vectorstore.save_local(str(settings.index_dir))
+        write_index_meta(settings, vectorstore, len(documents))
         print(f"Saved index to {settings.index_dir}")
     return vectorstore
+
+
+INDEX_META_FILE = "index_meta.json"
+
+
+def write_index_meta(settings: Settings, vectorstore: FAISS, documents: int) -> Path:
+    """Record which configuration built this index, next to the index itself."""
+    meta = {
+        **settings.as_run_params(),
+        "documents": documents,
+        "vectors": count_documents(vectorstore),
+        "dim": int(vectorstore.index.d),
+        "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+    path = settings.index_dir / INDEX_META_FILE
+    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return path
+
+
+def read_index_meta(settings: Settings) -> dict | None:
+    path = settings.index_dir / INDEX_META_FILE
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Ignoring unreadable {path}: {exc}")
+        return None
+
+
+def resolve_index_settings(settings: Settings) -> Settings:
+    """Make the settings agree with the index on disk.
+
+    An index is embedded by one specific model; querying it with another
+    produces nonsense, or a dimension error if the sizes differ. The index
+    records its own model, and that recording wins.
+    """
+    meta = read_index_meta(settings)
+    if not meta:
+        return settings
+
+    built_with = meta.get("embedding_model")
+    if built_with and built_with != settings.embedding_model:
+        print(
+            f"Index at {settings.index_dir} was built with "
+            f"embedding_model={built_with!r}, not {settings.embedding_model!r}. "
+            f"Using {built_with!r} to match the index; rebuild it with "
+            f"`rag-ingest` to change model."
+        )
+        return settings.model_copy(update={"embedding_model": built_with})
+    return settings
 
 
 def load_index(settings: Settings | None = None) -> FAISS:
@@ -130,6 +177,7 @@ def load_index(settings: Settings | None = None) -> FAISS:
     if not settings.index_dir.exists():
         return build_index(settings)
 
+    settings = resolve_index_settings(settings)
     print(f"Loading FAISS index from {settings.index_dir}")
     return FAISS.load_local(
         str(settings.index_dir),

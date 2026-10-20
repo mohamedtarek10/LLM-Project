@@ -1,0 +1,14 @@
+# DVC parameters. `dvc repro` re-runs the affected stages when these change,
+# and `rag-ingest` / `rag-sweep` read them too, so the pipeline and the
+# experiments stay in step.
+chunking:
+  chunk_size: 2000
+  chunk_overlap: 500
+
+embedding:
+  # "hashing" is the offline default so `dvc repro` and CI need no API key.
+  # Set to an OpenAI model (e.g. text-embedding-3-small) for production.
+  model: hashing
+
+retrieval:
+  k: 4

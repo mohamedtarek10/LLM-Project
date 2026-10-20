@@ -1,0 +1,43 @@
+schema: '2.0'
+stages:
+  extract:
+    cmd: rag-extract --allow-empty
+    deps:
+    - path: files
+      hash: md5
+      md5: 9e01abbaf3b4b0c97bd17895a244e5d8.dir
+      size: 4551335
+      nfiles: 3
+    - path: src/rag_service/extraction
+      hash: md5
+      md5: ae1156c47f6f1ceb1c578245ea682c18.dir
+      size: 8877
+      nfiles: 3
+    outs:
+    - path: data/corpus.json
+      hash: md5
+      md5: d751713988987e9331980363e24189ce
+      size: 2
+  index:
+    cmd: rag-ingest
+    deps:
+    - path: data/corpus.json
+      hash: md5
+      md5: d751713988987e9331980363e24189ce
+      size: 2
+    - path: src/rag_service/ingest
+      hash: md5
+      md5: c636d9b03615c23dc199b4e0b75b06e6.dir
+      size: 12437
+      nfiles: 5
+    params:
+      params.yaml:
+        chunking.chunk_overlap: 500
+        chunking.chunk_size: 2000
+        embedding.model: hashing
+    outs:
+    - path: faiss_ev
+      hash: md5
+      md5: 6e7a764c4ae6d1e999bb92ddd686d538.dir
+      size: 384486
+      nfiles: 2

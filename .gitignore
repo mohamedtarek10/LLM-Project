@@ -10,4 +10,7 @@ venv/
 .pytest_cache/
 .ruff_cache/
 mlruns/
+mlflow.db
+mlartifacts/
 results/
+/faiss_ev

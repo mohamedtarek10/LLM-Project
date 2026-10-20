@@ -22,13 +22,21 @@ class Settings(BaseSettings):
     source_dir: Path = PROJECT_ROOT / "files"
     corpus_json: Path = PROJECT_ROOT / "data" / "corpus.json"
     index_dir: Path = PROJECT_ROOT / "faiss_ev"
+    eval_set: Path = PROJECT_ROOT / "data" / "eval_questions.json"
+
+    # --- experiment tracking -------------------------------------------------
+    # A database backend, not ./mlruns: the Model Registry requires one, and
+    # MLflow 3 has put the filesystem store into maintenance mode.
+    mlflow_tracking_uri: str = f"sqlite:///{(PROJECT_ROOT / 'mlflow.db').as_posix()}"
 
     # --- chunking (tracked per MLflow run) ----------------------------------
     chunk_size: int = 2000
     chunk_overlap: int = 500
 
     # --- models -------------------------------------------------------------
+    # "hashing" (offline), "hf:<model-id>" (local), or an OpenAI model name.
     embedding_model: str = "text-embedding-ada-002"
+    hashing_dim: int = 512
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.0
 
