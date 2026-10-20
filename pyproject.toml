@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-service"
+version = "0.1.0"
+description = "Retrieval-augmented Q&A service over a structured legal/technical corpus"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Core runtime: everything needed to SERVE /ask and /health.
+# Deliberately free of torch / transformers so the API image stays small.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "langchain==0.3.13",
+    "langchain-community==0.3.13",
+    "langchain-core==0.3.28",
+    "langchain-openai==0.2.14",
+    "faiss-cpu>=1.8",
+    "tiktoken>=0.7",
+    "python-dotenv>=1.0",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+# Needed only to (re)build the index from source documents.
+ingest = [
+    "pymupdf>=1.24",
+    "pytesseract>=0.3.10",
+    "llama-index>=0.11",
+    "beautifulsoup4>=4.12",
+]
+# Local / open embeddings and the fine-tuning stack.
+local = [
+    "sentence-transformers>=3.0",
+    "torch>=2.2",
+    "langchain-huggingface>=0.1.2,<0.2",
+    "langchain-ollama>=0.2,<0.3",
+]
+finetune = [
+    "transformers>=4.44",
+    "peft>=0.12",
+    "trl>=0.9",
+    "datasets>=2.20",
+    "bitsandbytes>=0.43",
+    "wandb>=0.17",
+]
+ui = ["streamlit>=1.37"]
+dev = [
+    "pytest>=8.2",
+    "httpx>=0.27",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+rag-ingest = "rag_service.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI's `Depends(...)` in a default argument is the documented idiom.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long prompt templates are more readable left unwrapped.
+"finetune/*" = ["E501"]

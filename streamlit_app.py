@@ -1,123 +1,82 @@
+"""Streamlit front end. Thin UI over the same engine the API uses."""
+
 import uuid
+
 import streamlit as st
 
-from main import init_rag_system, get_answer, add_url_to_knowledge_base
+from rag_service.config import get_settings
+from rag_service.ingest.pipeline import add_url
+from rag_service.rag import RagEngine
 
-
-st.set_page_config(
-    page_title="EV Charging Chatbot",
-    page_icon="⚡",
-    layout="wide",
-)
-
-
-def init_session() -> None:
-    """Initialize Streamlit session state for chat."""
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = str(uuid.uuid4())
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-
-def render_history() -> None:
-    """Render existing chat messages."""
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-
-def append_message(role: str, content: str) -> None:
-    """Store a new message in chat history."""
-    st.session_state.messages.append({"role": role, "content": content})
+st.set_page_config(page_title="RAG Knowledge Assistant", page_icon="📚", layout="wide")
 
 
 @st.cache_resource
-def get_rag_resources():
-    """Initialize and cache the heavy RAG resources."""
-    return init_rag_system()
+def get_engine() -> RagEngine:
+    return RagEngine()
 
 
 def main() -> None:
-    init_session()
+    st.session_state.setdefault("session_id", str(uuid.uuid4()))
+    st.session_state.setdefault("messages", [])
 
-    st.title("EV Charging Knowledge Assistant")
-    st.caption("Ask questions about the uploaded charging station documents.")
+    st.title("Knowledge Assistant")
+    st.caption("Answers are drawn from the indexed corpus and cite their sources.")
 
-    # Initialize resources
     with st.spinner("Initializing system..."):
-        resources = get_rag_resources()
+        engine = get_engine()
 
     with st.sidebar:
-        st.header("Add Knowledge")
-        url_input = st.text_input("Enter URL to scrape")
-        if st.button("Add URL"):
-            if url_input:
-                with st.spinner("Scraping and indexing..."):
-                    success, msg = add_url_to_knowledge_base(url_input, resources)
-                    if success:
-                        st.success(msg)
-                        # Clear cache to force reload of the updated vectorstore
-                        st.cache_resource.clear()
-                        # Rerun to refresh the session with new resources
-                        st.rerun()
-                    else:
-                        st.error(f"Failed: {msg}")
+        st.metric("Documents indexed", engine.documents_indexed)
 
-        # st.markdown("---")
-        # if st.button("Reset Knowledge Base", type="primary"):
-        #     with st.spinner("Resetting..."):
-        #         import shutil
-        #         import os
-        #         if os.path.exists("faiss_ev"):
-        #             shutil.rmtree("faiss_ev")
-        #         st.cache_resource.clear()
-        #         st.success("Knowledge base reset. Please refresh.")
-        #         st.rerun()
+        st.header("Add knowledge")
+        url_input = st.text_input("URL to scrape")
+        if st.button("Add URL") and url_input:
+            with st.spinner("Scraping and indexing..."):
+                try:
+                    added = add_url(url_input, engine.vectorstore, get_settings())
+                    st.success(f"Added {added} chunks from {url_input}")
+                    st.cache_resource.clear()
+                    st.rerun()
+                except Exception as exc:  # noqa: BLE001 - surfaced to the user
+                    st.error(f"Failed: {exc}")
 
-    col1, col2 = st.columns([3, 1])
-    with col2:
         if st.button("Start new session", use_container_width=True):
+            engine.reset_session(st.session_state.session_id)
             st.session_state.session_id = str(uuid.uuid4())
             st.session_state.messages = []
-            st.toast("New session created.")
+            st.rerun()
 
-    # with st.expander("How this works"):
-    #     st.markdown(
-    #         "- Your questions are answered using the indexed PDF documents in `files/`.\n"
-    #         "- Each chat session keeps only the last couple of turns for context.\n"
-    #         "- Sources include file name and modified date when available."
-    #     )
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message.get("sources"):
+                with st.expander("Sources"):
+                    for source in message["sources"]:
+                        st.markdown(f"- {source}")
 
-    render_history()
+    question = st.chat_input("Ask a question...")
+    if not question:
+        return
 
-    prompt = st.chat_input("Ask about charging stations...")
-    if prompt:
-        append_message("user", prompt)
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": question})
+    with st.chat_message("user"):
+        st.markdown(question)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    result = get_answer(prompt, st.session_state.session_id, resources)
-                    answer = result.get("answer") if isinstance(result, dict) else str(result)
-                    sources = result.get("context") if isinstance(result, dict) else None
-                except Exception as exc:
-                    import traceback
-                    traceback.print_exc()
-                    answer = f"Something went wrong: {exc}"
-                    sources = None
-                st.markdown(answer)
+    with st.chat_message("assistant"), st.spinner("Thinking..."):
+        try:
+            result = engine.ask(question, st.session_state.session_id)
+            answer, sources = result.answer, result.sources
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user
+            answer, sources = f"Something went wrong: {exc}", []
 
-                # if sources:
-                #     with st.expander("Sources"):
-                #         for idx, doc in enumerate(sources, start=1):
-                #             meta = doc.metadata or {}
-                #             file_name = meta.get("file_name") or meta.get("source") or "unknown"
-                #             last_modified = meta.get("last_modified_date", "unknown")
-                #             st.markdown(f"**{idx}. {file_name}** — Last modified: {last_modified}")
+        st.markdown(answer)
+        if sources:
+            with st.expander("Sources"):
+                for source in sources:
+                    st.markdown(f"- {source}")
 
-        append_message("assistant", answer)
+    st.session_state.messages.append({"role": "assistant", "content": answer, "sources": sources})
 
 
 if __name__ == "__main__":
