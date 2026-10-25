@@ -3,7 +3,7 @@
 Built once per process and reused, so the API does not reload FAISS per request.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -24,6 +24,10 @@ MAX_HISTORY_MESSAGES = 4
 class Answer:
     answer: str
     sources: list[str]
+    # The retrieved passage text. The HTTP response exposes only `sources`;
+    # RAGAS needs the passages themselves to judge whether the answer is
+    # grounded in them.
+    contexts: list[str] = field(default_factory=list)
 
 
 class RagEngine:
@@ -95,9 +99,11 @@ class RagEngine:
             {"input": question},
             config={"configurable": {"session_id": session_id}},
         )
+        documents = result.get("context") or []
         return Answer(
             answer=result.get("answer", ""),
-            sources=unique_citations(result.get("context")),
+            sources=unique_citations(documents),
+            contexts=[doc.page_content for doc in documents],
         )
 
     def reset_session(self, session_id: str) -> None:

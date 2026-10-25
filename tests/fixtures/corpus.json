@@ -1,0 +1,86 @@
+[
+  {
+    "article_number": 1,
+    "text": "Every person is competent to contract unless declared otherwise by law.",
+    "repealed": false,
+    "section": "General Provisions",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 2,
+    "text": "A contract is formed by the agreement of two or more persons.",
+    "repealed": false,
+    "section": "General Provisions",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 3,
+    "text": "An offer lapses if it is not accepted within the period fixed for it.",
+    "repealed": false,
+    "section": "Formation",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 4,
+    "text": "This article was repealed and no longer has effect.",
+    "repealed": true,
+    "section": "Formation",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 5,
+    "text": "Acceptance must match the offer in all its terms.",
+    "repealed": false,
+    "section": "Formation",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 6,
+    "text": "كل شخص أهل للتعاقد ما لم تسلب أهليته أو يحد منها بحكم القانون.",
+    "repealed": false,
+    "section": "أحكام عامة",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 7,
+    "text": "يتم العقد بمجرد أن يتبادل الطرفان التعبير عن إرادتين متطابقتين.",
+    "repealed": false,
+    "section": "انعقاد العقد",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 8,
+    "text": "هذه المادة ملغاة بموجب القانون رقم 100 لسنة 1952.",
+    "repealed": true,
+    "section": "انعقاد العقد",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 9,
+    "text": "The seller is obliged to deliver the thing sold to the buyer.",
+    "repealed": false,
+    "section": "Sale",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 10,
+    "text": "The buyer must pay the price at the time and place agreed.",
+    "repealed": false,
+    "section": "Sale",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 11,
+    "text": "يلتزم البائع بتسليم المبيع إلى المشتري في الحالة التي كان عليها وقت البيع.",
+    "repealed": false,
+    "section": "البيع",
+    "file_name": "fixture-civil-code.pdf"
+  },
+  {
+    "article_number": 12,
+    "text": "Delivery takes place when the seller puts the thing at the buyer's disposal.",
+    "repealed": false,
+    "section": "Sale",
+    "file_name": "fixture-civil-code.pdf"
+  }
+]

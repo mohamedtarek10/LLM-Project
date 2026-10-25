@@ -1,0 +1,62 @@
+[
+  {
+    "question": "What is an EV charging station?"
+  },
+  {
+    "question": "What are the main types of EV charging connectors?"
+  },
+  {
+    "question": "How does DC fast charging differ from AC charging?"
+  },
+  {
+    "question": "What power levels are typical for Level 2 charging?"
+  },
+  {
+    "question": "What safety requirements apply to charging equipment?"
+  },
+  {
+    "question": "What should be considered when siting a public charger?"
+  },
+  {
+    "question": "How is grid capacity assessed for a charging installation?"
+  },
+  {
+    "question": "What are the accessibility requirements for charging bays?"
+  },
+  {
+    "question": "What signage is required at a charging location?"
+  },
+  {
+    "question": "How is a charging session authenticated?"
+  },
+  {
+    "question": "What payment methods are supported at public chargers?"
+  },
+  {
+    "question": "What maintenance is required for charging equipment?"
+  },
+  {
+    "question": "How are faults reported and handled?"
+  },
+  {
+    "question": "What are the cable and connector specifications?"
+  },
+  {
+    "question": "What environmental protection ratings apply to outdoor units?"
+  },
+  {
+    "question": "How is charging equipment earthed and protected?"
+  },
+  {
+    "question": "What communication protocols connect a charger to its backend?"
+  },
+  {
+    "question": "What metering accuracy is required for billing?"
+  },
+  {
+    "question": "How should charging points be spaced in a car park?"
+  },
+  {
+    "question": "What documentation must be kept for a charging installation?"
+  }
+]

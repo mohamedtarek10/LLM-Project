@@ -198,3 +198,47 @@ def sweep() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# --------------------------------------------------------------------------- #
+# rag-eval
+# --------------------------------------------------------------------------- #
+def evaluate_faithfulness_cli() -> None:
+    """Run the RAGAS faithfulness gate. Exits non-zero below the threshold."""
+    import sys
+
+    defaults = settings_from_params()
+    parser = argparse.ArgumentParser(
+        description="Score answer faithfulness with RAGAS and gate on it"
+    )
+    parser.add_argument(
+        "--questions", type=Path, default=PROJECT_ROOT / "data" / "ragas_questions.json"
+    )
+    parser.add_argument(
+        "--min-faithfulness",
+        type=float,
+        default=None,
+        help="Fail if mean faithfulness falls below this (default: 0.75).",
+    )
+    parser.add_argument("--report", type=Path, default=PROJECT_ROOT / "reports" / "ragas.json")
+    args = parser.parse_args()
+
+    from rag_service.evaluation.ragas_eval import (
+        DEFAULT_MIN_FAITHFULNESS,
+        evaluate_faithfulness,
+        load_questions,
+    )
+    from rag_service.rag import RagEngine
+
+    threshold = (
+        args.min_faithfulness if args.min_faithfulness is not None else DEFAULT_MIN_FAITHFULNESS
+    )
+    questions = load_questions(args.questions)
+    report = evaluate_faithfulness(RagEngine(defaults), questions, threshold=threshold)
+
+    path = report.write(args.report)
+    print(f"\n{report.summary()}")
+    print(f"Report written to {path}")
+
+    if not report.passed:
+        sys.exit(1)
